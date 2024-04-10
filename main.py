@@ -17,22 +17,6 @@ BOT_TOKEN = '6718278003:AAEn1cxM9iKStowSOxMXekv4mrjpl_Dr3YA'
 bot = Bot(token=BOT_TOKEN)
 
 
-async def test(update, context):
-    answer = update.message.text
-    if answer == 'Разместить рекламу':
-        await update.message.reply_text('Успешно!')
-        return 2
-    elif answer == 'Добавить канал':
-        await update.message.reply_text('END')
-        return ConversationHandler.END
-    # elif update.message.text == 'Добавить канал':
-
-
-async def test2(update, context):
-    await update.message.reply_text('END')
-    return ConversationHandler.END
-
-
 async def get_response(url, params):
     logger.info(f"getting {url}")
     async with aiohttp.ClientSession() as session:
@@ -87,16 +71,18 @@ async def close_keyboard(update, context):
 
 
 async def start(update, context):
-    shop_btn = InlineKeyboardButton('Бот-магазин', callback_data='shop')
-    other_btn = InlineKeyboardButton(text='Бот-обработчик', callback_data='other')
-    markup = InlineKeyboardMarkup([[shop_btn],
-                                   [other_btn]])
+    markup = ReplyKeyboardMarkup([['Бот-магазин'],
+                                  ['Бот-обработчик']], one_time_keyboard=True, resize_keyboard=True)
     await update.message.reply_text(
         "Здравствуйте!\n"
         "Через бота Вы можете приобрести другого бота :)\n"
         "Выберите,  пожалуйста, категорию бота:", reply_markup=markup
     )
     return 0
+
+
+async def back_start(update, context):
+    pass
 
 
 async def write_data(update, context):
@@ -116,72 +102,60 @@ async def read_data(update, context):
     await update.effective_message.reply_text(items)
 
 
-# Теперь только через ReplyKeyboardMarkup!!!!!!
-async def second(update, context):
-    query = update.callback_query
-    await query.answer()
-    # keyboard = [[InlineKeyboardButton(text='123', callback_data='12')], [InlineKeyboardButton(text='2', callback_data='12')]]
-    # markup = InlineKeyboardMarkup(keyboard)
-    if query.data == 'shop':
-        # await query.edit_message_text(text='Отлично! Теперь ознакомьтесь с описанием1')
-        return 1
-    elif query.data == 'other':
-        # await query.edit_message_text(text='Отлично! Теперь ознакомьтесь с описанием2', reply_markup=None)
-
-
-async def third(update, context):
-    await update.message.reply_text('Отлично!')
+# Теперь только через ReplyKeyboardMarkup!!!!!
 
 
 async def first_response_from_owner(update, context):
+    markup = ReplyKeyboardMarkup([['Да!'], ['Назад']],
+                                 one_time_keyboard=True, resize_keyboard=True)
     answer = update.message.text
     if answer == 'Стоп':
         await update.message.reply_text("Действие отменено.\n"
                                         "Нажмите /start, чтобы начать заново.")
         return ConversationHandler.END
-    elif answer == 'Разместить рекламу':
-        await update.message.reply_text('Успешно!')
-        # return 2
-    elif answer == 'Добавить канал':
-        await update.message.reply_text("Отлично!\n"
-                                        "Добавьте, пожалуйста, этого бота (@for_testing_my_program_bot) к себе в канал "
-                                        "и назначьте администратором, а также разрешите делать публикации. Затем "
-                                        "отправьте боту имя канала в формате @<уникальное имя вашего канала>.\n"
-                                        "Для отмены действия нажмите /stop.")
-        return 'channel_1'
+    elif answer == 'Бот-магазин':
+        await update.message.reply_text('Хорошо!\n'
+                                        'С помощью такого бота вы сможете размещать на продажу свои товары, '
+                                        'а клиент сможет оплачивать их в самом боте!\n'
+                                        'Цена бота: 800 рублей.'
+                                        'Продолжить?'
+                                        , reply_markup=markup)
+        return 'shop_1'
+    elif answer == 'Бот-обработчик':
+        await update.message.reply_text('Отлично!\n'
+                                        'Благодаря такому боту можно обрабатывать данные пользователя. Например, '
+                                        'бот-переводчик или бот, умеющий преобразовывать '
+                                        'изображения в другие форматы.\n'
+                                        'Цена бота: 500 рублей.'
+                                        'Продолжить?',
+                                        reply_markup=markup)
+        return 'other_1'
 
 
-async def second_response_from_owner(update, context):
-    channel_name = update.message.text
-    user_id = update.message.chat_id
-    if channel_name == 'Стоп':
-        await update.message.reply_text("Действие отменено.\n"
-                                        "Нажмите /start, чтобы начать заново.")
+async def second_response_shop(update, context):
+    text = update.message.text
+    # user_id = update.message.chat_id
+    if text == 'Стоп':
+        await update.message.reply_text('Действие отменено.\n'
+                                        'Нажмите /start, чтобы начать заново.')
         return ConversationHandler.END
-    try:
-        response = get(f"https://api.telegram.org/bot6718278003:AAEn1cxM9iKStowSOxMXekv4m"
-                       f"rjpl_Dr3YA/getChat?chat_id={channel_name}").json()
-        channel_id = response["result"]["id"]
-        admins = await bot.get_chat_administrators(channel_id)
-        check_lst = []
-        for admin in admins:
-            check_lst.append(admin.user.id)
-        if user_id not in check_lst:
-            await update.message.reply_text("Извините! Вы не являетесь администратором этого канала.\n"
-                                            "Попробуйте ещё раз, нажав /start.")
-            return ConversationHandler.END
-        else:
-            await update.message.reply_text(f"Отлично! Вы добавили канал {channel_name}\n"
-                                            f"Теперь введите, пожалуйста, стоимость одного поста в рублях.")
-            return 'channel_2'
-    except KeyError:
-        await update.message.reply_text("Извините, такого канала не существует.\n"
-                                        "Попробуйте ещё раз, нажав /start.")
-        return ConversationHandler.END
-    except telegram.error.BadRequest:
-        await update.message.reply_text("Извините! Вы не являетесь администратором этого канала.\n"
-                                        "Попробуйте ещё раз, нажав /start.")
-        return ConversationHandler.END
+    elif text == 'Да!':
+        await update.message.reply_text('Замечательно!\n'
+                                        'Теперь нужно отправить разработчику ТЗ (техническое задание) в формате ... . '
+                                        'В нём необходимо указать все функции, которые вы желали бы увидеть в вашем '
+                                        'телеграм-боте. Также можете добавить примечания к боту.')
+        return 'shop_2'
+    elif text == 'Назад':
+        markup = ReplyKeyboardMarkup([['Бот-магазин'],
+                                      ['Бот-обработчик']], one_time_keyboard=True, resize_keyboard=True)
+        await update.message.reply_text(
+            "Выберите, пожалуйста, категорию бота:", reply_markup=markup
+        )
+        return 0
+
+
+async def second_response_other(update, context):
+    pass
 
 
 async def stop(update, context):
@@ -211,9 +185,10 @@ def main():
         # Состояние внутри диалога.
         # Вариант с двумя обработчиками, фильтрующими текстовые сообщения.
         states={
-            0: [CallbackQueryHandler(second)],
-            1: [MessageHandler(filters.TEXT & ~filters.COMMAND, third)],
-            "channel_1": [MessageHandler(filters.TEXT & ~filters.COMMAND, second_response_from_owner)],
+            0: [MessageHandler(filters.TEXT & ~filters.COMMAND, first_response_from_owner)],
+            "shop_1": [MessageHandler(filters.TEXT & ~filters.COMMAND, second_response_shop)],
+            'back_start': [MessageHandler(filters.TEXT & ~filters.COMMAND, back_start)],
+            "other_1": [MessageHandler(filters.TEXT & ~filters.COMMAND, second_response_other)],
             # "channel_2": [MessageHandler(filters.TEXT & ~filters.COMMAND, third_response_from_owner)]
         },
 
