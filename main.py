@@ -17,13 +17,6 @@ BOT_TOKEN = '6718278003:AAEn1cxM9iKStowSOxMXekv4mrjpl_Dr3YA'
 bot = Bot(token=BOT_TOKEN)
 
 
-async def get_response(url, params):
-    logger.info(f"getting {url}")
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, params=params) as resp:
-            return await resp.json()
-
-
 async def unset(update, context):
     chat_id = update.message.chat_id
     job_removed = remove_job_if_exists(str(chat_id), context)
@@ -63,13 +56,6 @@ async def set_timer(update, context):
         await update.effective_message.reply_text('Установите время в секундах')
 
 
-async def close_keyboard(update, context):
-    await update.message.reply_text(
-        "Ok",
-        reply_markup=ReplyKeyboardRemove()
-    )
-
-
 async def start(update, context):
     markup = ReplyKeyboardMarkup([['Бот-магазин'],
                                   ['Бот-обработчик']], one_time_keyboard=True, resize_keyboard=True)
@@ -102,9 +88,6 @@ async def read_data(update, context):
     await update.effective_message.reply_text(items)
 
 
-# Теперь только через ReplyKeyboardMarkup!!!!!
-
-
 async def first_response_from_owner(update, context):
     markup = ReplyKeyboardMarkup([['Да!'], ['Назад']],
                                  one_time_keyboard=True, resize_keyboard=True)
@@ -132,9 +115,15 @@ async def first_response_from_owner(update, context):
         return 'other_1'
 
 
+async def get_TT_from_owner(update, context):
+    # try:
+    file = await context.bot.get_file(update.message.document)
+    await file.download_to_drive(file.file_name + update.message.chat_id)
+    # except
+
+
 async def second_response_shop(update, context):
     text = update.message.text
-    # user_id = update.message.chat_id
     if text == 'Стоп':
         await update.message.reply_text('Действие отменено.\n'
                                         'Нажмите /start, чтобы начать заново.')
