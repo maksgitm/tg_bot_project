@@ -1,1 +1,2 @@
-print(int('00q1'))
+n, s = ['sdfsd', 'sdfsdf']
+print(n, s)

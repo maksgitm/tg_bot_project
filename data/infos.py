@@ -8,6 +8,9 @@ class Info(SqlAlchemyBase, SerializerMixin):
     __tablename__ = 'ads'
     id = sqlalchemy.Column(sqlalchemy.Integer,
                            primary_key=True, autoincrement=True)
-    ad_data = sqlalchemy.Column(sqlalchemy.String)
-    cost = sqlalchemy.Column(sqlalchemy.String)
-
+    user_id = sqlalchemy.Column(sqlalchemy.Integer)
+    ad_data = sqlalchemy.Column(sqlalchemy.BLOB)
+    type = sqlalchemy.Column(sqlalchemy.String)
+    format = sqlalchemy.Column(sqlalchemy.String)
+    user_name = sqlalchemy.Column(sqlalchemy.String)
+    description = sqlalchemy.Column(sqlalchemy.String)

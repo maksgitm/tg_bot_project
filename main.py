@@ -1,9 +1,8 @@
-from requests import get
 import logging
-import aiohttp
-import telegram
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, MessageHandler, filters, CommandHandler, ConversationHandler, CallbackQueryHandler
+import sqlalchemy
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice, Update
+from telegram.ext import Application, MessageHandler, filters, CommandHandler, ConversationHandler, \
+    CallbackQueryHandler, PreCheckoutQueryHandler
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton, ChatMemberAdministrator
 from data import db_session
 from data.infos import Info
@@ -14,57 +13,23 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 BOT_TOKEN = '6718278003:AAEn1cxM9iKStowSOxMXekv4mrjpl_Dr3YA'
+SHOP_TOKEN = '1744374395:TEST:d28241bde3387bace73e'
 bot = Bot(token=BOT_TOKEN)
-
-
-async def unset(update, context):
-    chat_id = update.message.chat_id
-    job_removed = remove_job_if_exists(str(chat_id), context)
-    text = 'Таймер отменен!' if job_removed else 'У вас нет активных таймеров'
-    await update.message.reply_text(text)
-
-
-async def task(context):
-    await context.bot.send_message(context.job.chat_id, text=f'КУКУ! {context.job.data} c. прошли!')
-
-
-def remove_job_if_exists(name, context):
-    current_jobs = context.job_queue.get_jobs_by_name(name)
-    if not current_jobs:
-        return False
-    for job in current_jobs:
-        job.schedule_removal()
-    return True
-
-
-async def set_timer(update, context):
-    try:
-        chat_id = update.effective_message.chat_id
-        time = float(context.args[0])
-        if time < 0:
-            await update.effective_message.reply_text('Нельзя установить таймер на отрицательное время :(')
-            return
-
-        job_removed = remove_job_if_exists(str(chat_id), context)
-        context.job_queue.run_once(task, time, chat_id=chat_id, name=str(chat_id), data=time)
-
-        text = f'Вернусь через {time} с.!'
-        if job_removed:
-            text += ' Старая задача удалена.'
-        await update.effective_message.reply_text(text)
-    except (ValueError, IndexError):
-        await update.effective_message.reply_text('Установите время в секундах')
 
 
 async def start(update, context):
     markup = ReplyKeyboardMarkup([['Бот-магазин'],
-                                  ['Бот-обработчик']], one_time_keyboard=True, resize_keyboard=True)
+                                  ['Бот-обработчик']], resize_keyboard=True)
+    if update.message.chat_id == 5131259861:
+        markup = ReplyKeyboardMarkup([['Показать все заявки']], resize_keyboard=True, one_time_keyboard=True)
+        await update.message.reply_text('Начнём работу!', reply_markup=markup)
+        return 'show_all_works'
     await update.message.reply_text(
         "Здравствуйте!\n"
         "Через бота Вы можете приобрести другого бота :)\n"
         "Выберите,  пожалуйста, категорию бота:", reply_markup=markup
     )
-    return 0
+    return 'choice'
 
 
 async def back_start(update, context):
@@ -88,7 +53,7 @@ async def read_data(update, context):
     await update.effective_message.reply_text(items)
 
 
-async def first_response_from_owner(update, context):
+async def choice(update, context):
     markup = ReplyKeyboardMarkup([['Да!'], ['Назад']],
                                  one_time_keyboard=True, resize_keyboard=True)
     answer = update.message.text
@@ -100,51 +65,171 @@ async def first_response_from_owner(update, context):
         await update.message.reply_text('Хорошо!\n'
                                         'С помощью такого бота вы сможете размещать на продажу свои товары, '
                                         'а клиент сможет оплачивать их в самом боте!\n'
-                                        'Цена бота: 800 рублей.'
+                                        'Цена бота: 800 рублей\n'
                                         'Продолжить?'
                                         , reply_markup=markup)
-        return 'shop_1'
+        context.user_data['variant'] = 'магазин'
+
+        return 'payment'
     elif answer == 'Бот-обработчик':
         await update.message.reply_text('Отлично!\n'
                                         'Благодаря такому боту можно обрабатывать данные пользователя. Например, '
                                         'бот-переводчик или бот, умеющий преобразовывать '
                                         'изображения в другие форматы.\n'
-                                        'Цена бота: 500 рублей.'
+                                        'Цена бота: 500 рублей\n'
                                         'Продолжить?',
                                         reply_markup=markup)
-        return 'other_1'
+        context.user_data['variant'] = 'обработчик'
+        return 'payment'
 
 
-async def get_TT_from_owner(update, context):
-    # try:
-    file = await context.bot.get_file(update.message.document)
-    await file.download_to_drive(file.file_name + update.message.chat_id)
-    # except
+async def payment_check(update, context):
+    query = update.pre_checkout_query
+    if query.invoice_payload != "Custom-Payload":
+        await query.answer(ok=False, error_message="Что-то пошло не так...")
+    else:
+        await query.answer(ok=True)
 
 
-async def second_response_shop(update, context):
+async def successful_payment(update, context):
+    markup = ReplyKeyboardMarkup([['Далее']], one_time_keyboard=True, resize_keyboard=True)
+    await update.message.reply_text('Ура! Оплата прошла успешно!\n'
+                                    'Чтобы продолжить, нажмите на Далее.', reply_markup=markup)
+
+
+async def payment(update, context):
     text = update.message.text
     if text == 'Стоп':
         await update.message.reply_text('Действие отменено.\n'
                                         'Нажмите /start, чтобы начать заново.')
         return ConversationHandler.END
     elif text == 'Да!':
-        await update.message.reply_text('Замечательно!\n'
-                                        'Теперь нужно отправить разработчику ТЗ (техническое задание) в формате ... . '
-                                        'В нём необходимо указать все функции, которые вы желали бы увидеть в вашем '
+        await update.message.reply_text('Отлично!\n'
+                                        'Теперь осталось оплатить бота, а затем отправить техническое '
+                                        'задание.')
+        chat_id = update.message.chat_id
+        title = "Оплата бота"
+        description = "Пожалуйста, оплатите бота."
+        payload = "Custom-Payload"
+        currency = "rub"
+        if context.user_data["variant"] == 'магазин':
+            price = 80000
+        else:
+            price = 50000
+        prices = [LabeledPrice("Test", price)]
+        await context.bot.send_invoice(chat_id, title, description, payload, SHOP_TOKEN, currency, prices)
+        return 'asking_description'
+
+
+async def asking_description(update, context):
+    text = update.message.text
+    if text == 'Далее':
+        await update.message.reply_text('Расскажите, пожалуйста, о боте в нескольких словах:')
+        return 'asking_file'
+
+
+async def asking_file(update, context):
+    text = update.message.text
+    if text == 'Стоп':
+        await update.message.reply_text('Действие отменено.\n'
+                                        'Нажмите /start, чтобы начать заново.')
+        return ConversationHandler.END
+    elif text:
+        context.user_data["description"] = text
+        await update.message.reply_text('Отлично!\n'
+                                        'Теперь нужно отправить разработчику ТЗ (техническое задание) '
+                                        'в одном из предложенных форматах: ".docx", ".doc", ".txt", '
+                                        '".rtf", ".odt", ".pdf".\n'
+                                        'В ТЗ необходимо указать все функции, которые вы желали бы увидеть в '
                                         'телеграм-боте. Также можете добавить примечания к боту.')
-        return 'shop_2'
-    elif text == 'Назад':
-        markup = ReplyKeyboardMarkup([['Бот-магазин'],
-                                      ['Бот-обработчик']], one_time_keyboard=True, resize_keyboard=True)
-        await update.message.reply_text(
-            "Выберите, пожалуйста, категорию бота:", reply_markup=markup
+        return 'getting_file'
+    # elif text == 'Назад':
+    #     markup = ReplyKeyboardMarkup([['Бот-магазин'],
+    #                                   ['Бот-обработчик']], resize_keyboard=True)
+    #     await update.message.reply_text(
+    #         "Выберите, пожалуйста, категорию бота:", reply_markup=markup
+    #     )
+    #     return 0
+
+
+async def getting_file(update, context):
+    # await update.message.reply_text('ok')
+    user_id = update.message.chat_id
+    # try:
+    file = await context.bot.get_file(update.message.document)
+    file_format = file.file_path.split('/')[-1].split('.')[-1]
+    if (file_format == 'doc' or file_format == 'docx' or file_format == 'txt' or file_format == 'rtf' or
+            file_format == 'odt' or file_format == 'pdf') and file.file_size != 0:
+        await file.download_to_drive(f"send_file.{file_format}")
+    # elif file.file_size == 0:
+    #     await update.message.text('Вы отправили пустой файл')
+    with open(f"send_file.{file_format}", 'rb') as file:
+        tt_file = file.read()
+    db_sess = db_session.create_session()
+    user_name = f"@{update.message.chat.username}"
+    try:
+        info = Info(
+            user_id=user_id,
+            ad_data=tt_file,
+            type=context.user_data["variant"],
+            format=file_format,
+            user_name=user_name,
+            description=context.user_data["description"]
         )
-        return 0
+        db_sess.add(info)
+        db_sess.commit()
+    except sqlalchemy.exc.IntegrityError:
+        await update.message.reply_text('Вы уже добавили файл')
+
+    file = open(f"send_file.{file_format}", 'rb')
+    new = file.read()
+    file.close()
+    f = open(f'send_file.{file_format}', 'wb')
+    f.write(new)
+    f.close()
+    f = open(f'send_file.{file_format}', 'rb')
+    await context.bot.send_document(chat_id=5131259861, document=f)
+    f.close()
+    await update.message.reply_text('end')
 
 
-async def second_response_other(update, context):
-    pass
+async def show_all_works(update, context):
+    text = update.message.text
+    markup = ReplyKeyboardMarkup([['Отправить бота пользователю']], resize_keyboard=True)
+    if text == 'Показать все заявки':
+        db_sess = db_session.create_session()
+        for work in db_sess.query(Info).all():
+            work_id = f"Заявка №{work.id}\n"
+            user_id = f"id пользователя: {work.user_id}\n"
+            user_name = f"Имя пользователя: {work.user_name}"
+            f = open(f"file_{work.id}.{work.format}", 'wb')
+            f.write(work.ad_data)
+            f.close()
+            await context.bot.send_message(chat_id=5131259861, text=f"{work_id}{user_id}{user_name}", reply_markup=markup)
+            f = open(f"file_{work.id}.{work.format}", 'rb')
+            await context.bot.send_document(chat_id=5131259861, document=f)
+            f.close()
+        send_text = 'Чтобы отправить готового бота пользователю, нажмите на кнопку ниже'
+        await context.bot.send_message(chat_id=5131259861, text=send_text)
+        return 'send_bot_preparing'
+
+
+async def send_bot_preparing(update, context):
+    text = update.message.text
+    if text == "Отправить бота пользователю":
+        await update.message.reply_text('Чтобы отправить бота пользователю, '
+                                        'введите имя бота и номер заявки в формате @<имя бота>, <номер заявки>')
+        return 'send_bot_finish'
+
+
+async def send_bot_finish(update, context):
+    bot_name, id_ = update.message.text.split(', ')
+    db_sess = db_session.create_session()
+    work = db_sess.query(Info).filter(Info.id == int(id_)).first()
+    user_id = work.user_id
+    description = work.description
+    await context.bot.send_message(chat_id=user_id, text=f"Ваш бот готов! (заявка №{int(id_)})\n"
+                                                         f"{description}\n{bot_name}")
 
 
 async def stop(update, context):
@@ -155,39 +240,43 @@ async def stop(update, context):
 
 async def help(update, context):
     await update.message.reply_text(
-        "Я бот справочник.")
+        "Я бот справочник."
+    )
+
+
+async def test(update, context):
+    await update.message.reply_text(
+        "Я бот справочник."
+    )
 
 
 def main():
-    db_session.global_init("db/tg_example.sqlite")
+    db_session.global_init("db/bot_db.sqlite")
     application = Application.builder().token("6718278003:AAEn1cxM9iKStowSOxMXekv4mrjpl_Dr3YA").build()
     application.add_handler(CommandHandler("help", help))
-    application.add_handler(CommandHandler("close", close_keyboard))
-    application.add_handler(CommandHandler("set", set_timer))
-    application.add_handler(CommandHandler("unset", unset))
+    application.add_handler(CommandHandler("show_all", show_all_works))
+    application.add_handler(PreCheckoutQueryHandler(payment_check))
+    application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment))
 
-    conv_handler = ConversationHandler(
-        # Точка входа в диалог.
-        # В данном случае — команда /start. Она задаёт первый вопрос.
+    conv_handler_user = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
-
-        # Состояние внутри диалога.
-        # Вариант с двумя обработчиками, фильтрующими текстовые сообщения.
         states={
-            0: [MessageHandler(filters.TEXT & ~filters.COMMAND, first_response_from_owner)],
-            "shop_1": [MessageHandler(filters.TEXT & ~filters.COMMAND, second_response_shop)],
-            'back_start': [MessageHandler(filters.TEXT & ~filters.COMMAND, back_start)],
-            "other_1": [MessageHandler(filters.TEXT & ~filters.COMMAND, second_response_other)],
-            # "channel_2": [MessageHandler(filters.TEXT & ~filters.COMMAND, third_response_from_owner)]
-        },
+            'choice': [MessageHandler(filters.TEXT & ~filters.COMMAND, choice)],
+            "payment": [MessageHandler(filters.TEXT & ~filters.COMMAND, payment)],
+            "asking_description": [MessageHandler(filters.TEXT & ~filters.COMMAND, asking_description)],
+            "asking_file": [MessageHandler(filters.TEXT & ~filters.COMMAND, asking_file)],
+            "getting_file": [MessageHandler(filters.Document.ALL, getting_file)],
 
-        # Точка прерывания диалога. В данном случае — команда /stop.
+            "show_all_works": [MessageHandler(filters.TEXT, show_all_works)],
+            "send_bot_preparing": [MessageHandler(filters.TEXT, send_bot_preparing)],
+            "send_bot_finish": [MessageHandler(filters.TEXT, send_bot_finish)]
+        },
         fallbacks=[CommandHandler('stop', stop)]
     )
 
-    application.add_handler(conv_handler)
+    application.add_handler(conv_handler_user)
 
-    application.run_polling()
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == '__main__':
