@@ -14,3 +14,4 @@ class Info(SqlAlchemyBase, SerializerMixin):
     format = sqlalchemy.Column(sqlalchemy.String)
     user_name = sqlalchemy.Column(sqlalchemy.String)
     description = sqlalchemy.Column(sqlalchemy.String)
+    status = sqlalchemy.Column(sqlalchemy.String, nullable=True, default='В работе')

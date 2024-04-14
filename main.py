@@ -18,42 +18,22 @@ bot = Bot(token=BOT_TOKEN)
 
 
 async def start(update, context):
-    markup = ReplyKeyboardMarkup([['Бот-магазин'],
-                                  ['Бот-обработчик']], resize_keyboard=True)
-    if update.message.chat_id == 5131259861:
-        markup = ReplyKeyboardMarkup([['Показать все заявки']], resize_keyboard=True, one_time_keyboard=True)
-        await update.message.reply_text('Начнём работу!', reply_markup=markup)
-        return 'show_all_works'
+    markup = ReplyKeyboardMarkup([['Бот-магазин', 'Бот-обработчик'], ['Список заявок']], resize_keyboard=True)
+    # if update.message.chat_id == 5131259861:
+    #     markup = ReplyKeyboardMarkup([['Показать все заявки']], resize_keyboard=True, one_time_keyboard=True)
+    #     await update.message.reply_text('Начнём работу!', reply_markup=markup)
+    #     return 'show_all_works'
     await update.message.reply_text(
         "Здравствуйте!\n"
         "Через бота Вы можете приобрести другого бота :)\n"
-        "Выберите,  пожалуйста, категорию бота:", reply_markup=markup
+        "Вы можете выбрать категорию бота для покупки или посмотреть "
+        "список отправленных заявок для создания бота", reply_markup=markup
     )
     return 'choice'
 
 
-async def back_start(update, context):
-    pass
-
-
-async def write_data(update, context):
-    db_sess = db_session.create_session()
-    info = Info()
-    info.ad_data = context.args[0]
-    db_sess.add(info)
-    db_sess.commit()
-
-
-async def read_data(update, context):
-    db_sess = db_session.create_session()
-    info = db_sess.query(Info).all()
-    items = [item.to_dict() for item in info]
-    items = [item["ad_data"] for item in items]
-    print(items)
-    await update.effective_message.reply_text(items)
-
-
 async def choice(update, context):
+    chat_id = update.message.chat_id
     markup = ReplyKeyboardMarkup([['Да!'], ['Назад']],
                                  one_time_keyboard=True, resize_keyboard=True)
     answer = update.message.text
@@ -81,6 +61,13 @@ async def choice(update, context):
                                         reply_markup=markup)
         context.user_data['variant'] = 'обработчик'
         return 'payment'
+    elif answer == 'Список заявок':
+        db_sess = db_session.create_session()
+        for work in db_sess.query(Info).filter(Info.user_id == chat_id).all():
+            work_id = f"Заявка №{work.id}\n"
+            description = work.description
+            status = f"Статус: {work.status}"
+            await context.bot.send_message(chat_id=chat_id, text=f"{work_id}{description}\n{status}")
 
 
 async def payment_check(update, context):
@@ -153,16 +140,14 @@ async def asking_file(update, context):
 
 
 async def getting_file(update, context):
-    # await update.message.reply_text('ok')
     user_id = update.message.chat_id
-    # try:
     file = await context.bot.get_file(update.message.document)
     file_format = file.file_path.split('/')[-1].split('.')[-1]
     if (file_format == 'doc' or file_format == 'docx' or file_format == 'txt' or file_format == 'rtf' or
             file_format == 'odt' or file_format == 'pdf') and file.file_size != 0:
         await file.download_to_drive(f"send_file.{file_format}")
-    # elif file.file_size == 0:
-    #     await update.message.text('Вы отправили пустой файл')
+    else:
+        await update.message.reply_text('Неверный формат файла')
     with open(f"send_file.{file_format}", 'rb') as file:
         tt_file = file.read()
     db_sess = db_session.create_session()
@@ -191,6 +176,7 @@ async def getting_file(update, context):
     await context.bot.send_document(chat_id=5131259861, document=f)
     f.close()
     await update.message.reply_text('end')
+    return ConversationHandler.END
 
 
 async def show_all_works(update, context):
@@ -205,7 +191,8 @@ async def show_all_works(update, context):
             f = open(f"file_{work.id}.{work.format}", 'wb')
             f.write(work.ad_data)
             f.close()
-            await context.bot.send_message(chat_id=5131259861, text=f"{work_id}{user_id}{user_name}", reply_markup=markup)
+            await context.bot.send_message(chat_id=5131259861, text=f"{work_id}{user_id}{user_name}",
+                                           reply_markup=markup)
             f = open(f"file_{work.id}.{work.format}", 'rb')
             await context.bot.send_document(chat_id=5131259861, document=f)
             f.close()
@@ -225,9 +212,11 @@ async def send_bot_preparing(update, context):
 async def send_bot_finish(update, context):
     bot_name, id_ = update.message.text.split(', ')
     db_sess = db_session.create_session()
-    work = db_sess.query(Info).filter(Info.id == int(id_)).first()
+    work = db_sess.query(Info).get(int(id_))
+    work.status = 'Готово'
     user_id = work.user_id
     description = work.description
+    db_sess.commit()
     await context.bot.send_message(chat_id=user_id, text=f"Ваш бот готов! (заявка №{int(id_)})\n"
                                                          f"{description}\n{bot_name}")
 
@@ -244,14 +233,8 @@ async def help(update, context):
     )
 
 
-async def test(update, context):
-    await update.message.reply_text(
-        "Я бот справочник."
-    )
-
-
 def main():
-    db_session.global_init("db/bot_db.sqlite")
+    db_session.global_init("db/bot_tg_db.sqlite")
     application = Application.builder().token("6718278003:AAEn1cxM9iKStowSOxMXekv4mrjpl_Dr3YA").build()
     application.add_handler(CommandHandler("help", help))
     application.add_handler(CommandHandler("show_all", show_all_works))
