@@ -19,10 +19,10 @@ bot = Bot(token=BOT_TOKEN)
 
 async def start(update, context):
     markup = ReplyKeyboardMarkup([['Бот-магазин', 'Бот-обработчик'], ['Список заявок']], resize_keyboard=True)
-    # if update.message.chat_id == 5131259861:
-    #     markup = ReplyKeyboardMarkup([['Показать все заявки']], resize_keyboard=True, one_time_keyboard=True)
-    #     await update.message.reply_text('Начнём работу!', reply_markup=markup)
-    #     return 'show_all_works'
+    if update.message.chat_id == 5131259861:
+        markup = ReplyKeyboardMarkup([['Показать все заявки']], resize_keyboard=True, one_time_keyboard=True)
+        await update.message.reply_text('Начнём работу!', reply_markup=markup)
+        return 'show_all_works'
     await update.message.reply_text(
         "Здравствуйте!\n"
         "Через бота Вы можете приобрести другого бота :)\n"
