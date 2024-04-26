@@ -12,6 +12,5 @@ class Info(SqlAlchemyBase, SerializerMixin):
     ad_data = sqlalchemy.Column(sqlalchemy.BLOB)
     type = sqlalchemy.Column(sqlalchemy.String)
     format = sqlalchemy.Column(sqlalchemy.String)
-    user_name = sqlalchemy.Column(sqlalchemy.String)
     description = sqlalchemy.Column(sqlalchemy.String)
     status = sqlalchemy.Column(sqlalchemy.String, nullable=True, default='В работе')

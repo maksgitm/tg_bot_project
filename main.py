@@ -158,7 +158,7 @@ async def getting_file(update, context):
             ad_data=tt_file,
             type=context.user_data["variant"],
             format=file_format,
-            user_name=user_name,
+            # user_name убираем!
             description=context.user_data["description"]
         )
         db_sess.add(info)
