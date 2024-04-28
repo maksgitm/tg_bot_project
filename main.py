@@ -183,7 +183,8 @@ async def getting_file(update, context):
     work_id = f"Заявка №{work.id}\n"
     user_id = f"id пользователя: {work.user_id}\n"
     data = work.ad_data
-    await context.bot.send_message(chat_id=5131259861, text=f"{work_id}{user_id}")
+    description = f"Описание: {work.description}\n"
+    await context.bot.send_message(chat_id=5131259861, text=f"{work_id}{description}{user_id}")
     with open(f"files/file_{work.id}.{work.format}", 'wb') as ff:
         ff.write(data)
     f = open(f"files/file_{work.id}.{work.format}", 'rb')
