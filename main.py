@@ -81,12 +81,6 @@ async def payment_check(update, context):
         await query.answer(ok=True)
 
 
-async def main_menu(update, context):
-    markup = ReplyKeyboardMarkup([['🏪 Бот-магазин', '🖥 Бот-обработчик'], ['📋 Список заявок']],
-                                 resize_keyboard=True)
-    await update.message.reply_text('Выберите действие:', reply_markup=markup)
-    return 'choice'
-
 
 async def successful_payment(update, context):
     markup = ReplyKeyboardMarkup([['➡️ Далее']], one_time_keyboard=True, resize_keyboard=True)
@@ -292,7 +286,6 @@ def main():
     conv_handler_user = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
-            "main_menu": [MessageHandler(filters.TEXT & ~filters.COMMAND, main_menu)],
             "choice": [MessageHandler(filters.TEXT & ~filters.COMMAND, choice)],
             "payment": [MessageHandler(filters.TEXT & ~filters.COMMAND, payment)],
             "asking_description": [MessageHandler(filters.TEXT & ~filters.COMMAND, asking_description)],
