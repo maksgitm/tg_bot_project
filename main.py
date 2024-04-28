@@ -1,6 +1,6 @@
 import logging
 import sqlalchemy
-from telegram import Bot, LabeledPrice, Update
+from telegram import LabeledPrice, Update
 from telegram.ext import (Application, MessageHandler, filters, CommandHandler, ConversationHandler,
                           PreCheckoutQueryHandler)
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
@@ -14,39 +14,38 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 BOT_TOKEN = '6718278003:AAEn1cxM9iKStowSOxMXekv4mrjpl_Dr3YA'
 SHOP_TOKEN = '1744374395:TEST:d28241bde3387bace73e'
-bot = Bot(token=BOT_TOKEN)
 
 
 async def start(update, context):
-    markup = ReplyKeyboardMarkup([['🏪Бот-магазин', '🖥Бот-обработчик'], ['📋Список заявок']],
+    markup = ReplyKeyboardMarkup([['🏪 Бот-магазин', '🖥 Бот-обработчик'], ['📋 Список заявок']],
                                  resize_keyboard=True)
     if update.message.chat_id == 5131259861:
-        markup = ReplyKeyboardMarkup([['📋Показать все заявки'], ['☝️Показать только невыполненные']],
+        markup = ReplyKeyboardMarkup([['📋 Показать все заявки'], ['☝️ Показать только невыполненные']],
                                      resize_keyboard=True, one_time_keyboard=True)
         await update.message.reply_text('Начнём работу!', reply_markup=markup)
         return 'show_all_works'
     await update.message.reply_text(
-        "👋Здравствуйте!\n"
+        "👋 Здравствуйте!\n"
         "Через бота Вы можете приобрести другого бота :)\n"
         "Вы можете выбрать категорию бота для покупки или посмотреть "
         "список отправленных заявок для создания бота.\n"
-        "ℹ️По всем вопросам обращайтесь: penkovmaks07@gmail.com\n"
-        "❌Чтобы отменить действие, введите /stop", reply_markup=markup
+        "🆘 Помощь: /help\n"
+        "❌ Отмена действия: /stop", reply_markup=markup
     )
     return 'choice'
 
 
 async def choice(update, context):
     chat_id = update.message.chat_id
-    markup = ReplyKeyboardMarkup([['👌Да!'], ['◀️Назад']],
+    markup = ReplyKeyboardMarkup([['👌 Да!'], ['🏠 Главное меню']],
                                  one_time_keyboard=True, resize_keyboard=True)
     answer = update.message.text
     if answer == 'Стоп':
-        await update.message.reply_text("❌Действие отменено.\n"
+        await update.message.reply_text("❌ Действие отменено.\n"
                                         "Нажмите /start, чтобы начать заново.")
         return ConversationHandler.END
-    elif answer == '🏪Бот-магазин':
-        await update.message.reply_text('👌Хорошо!\n'
+    elif answer == '🏪 Бот-магазин':
+        await update.message.reply_text('👌 Хорошо!\n'
                                         'С помощью такого бота вы сможете размещать на продажу свои товары, '
                                         'а клиент сможет оплачивать их в самом боте!\n'
                                         'Цена бота: 800 рублей\n'
@@ -55,8 +54,8 @@ async def choice(update, context):
         context.user_data['variant'] = 'магазин'
 
         return 'payment'
-    elif answer == '🖥Бот-обработчик':
-        await update.message.reply_text('👍Отлично!\n'
+    elif answer == '🖥 Бот-обработчик':
+        await update.message.reply_text('👍 Отлично!\n'
                                         'Благодаря такому боту можно обрабатывать данные пользователя. Например, '
                                         'бот-переводчик или бот, умеющий преобразовывать '
                                         'изображения в другие форматы.\n'
@@ -65,7 +64,7 @@ async def choice(update, context):
                                         reply_markup=markup)
         context.user_data['variant'] = 'обработчик'
         return 'payment'
-    elif answer == '📋Список заявок':
+    elif answer == '📋 Список заявок':
         db_sess = db_session.create_session()
         for work in db_sess.query(Info).filter(Info.user_id == chat_id).all():
             work_id = f"Заявка №{work.id}\n"
@@ -77,34 +76,43 @@ async def choice(update, context):
 async def payment_check(update, context):
     query = update.pre_checkout_query
     if query.invoice_payload != "Custom-Payload":
-        await query.answer(ok=False, error_message="❌Что-то пошло не так...")
+        await query.answer(ok=False, error_message="❌ Что-то пошло не так...")
     else:
         await query.answer(ok=True)
 
 
+async def main_menu(update, context):
+    markup = ReplyKeyboardMarkup([['🏪 Бот-магазин', '🖥 Бот-обработчик'], ['📋 Список заявок']],
+                                 resize_keyboard=True)
+    await update.message.reply_text('Выберите действие:', reply_markup=markup)
+    return 'choice'
+
+
 async def successful_payment(update, context):
-    markup = ReplyKeyboardMarkup([['Далее']], one_time_keyboard=True, resize_keyboard=True)
-    await update.message.reply_text('🥳Ура! Оплата прошла успешно!\n'
+    markup = ReplyKeyboardMarkup([['➡️ Далее']], one_time_keyboard=True, resize_keyboard=True)
+    await update.message.reply_text('🥳 Ура! Оплата прошла успешно!\n'
                                     'Чтобы продолжить, нажмите на Далее.', reply_markup=markup)
 
 
 async def payment(update, context):
     text = update.message.text
     if text == 'Стоп':
-        await update.message.reply_text('❌Действие отменено.\n'
+        await update.message.reply_text('❌ Действие отменено.\n'
                                         'Нажмите /start, чтобы начать заново.')
         return ConversationHandler.END
-    elif text == '◀️Назад':
-        markup = ReplyKeyboardMarkup([['🏪Бот-магазин'],
-                                      ['🖥Бот-обработчик']], resize_keyboard=True)
+    elif text == '🏠 Главное меню':
+        markup = ReplyKeyboardMarkup([['🏪 Бот-магазин', '🖥 Бот-обработчик'],
+                                      ['📋 Список заявок']],
+                                     resize_keyboard=True)
         await update.message.reply_text(
-            "Выберите, пожалуйста, категорию бота:", reply_markup=markup
+            "Выберите, пожалуйста, действие:", reply_markup=markup
         )
         return 'choice'
-    elif text == '👌Да!':
-        await update.message.reply_text('👍Отлично!\n'
+    elif text == '👌 Да!':
+        markup = ReplyKeyboardMarkup([['🏠 Главное меню']], resize_keyboard=True)
+        await update.message.reply_text('👍 Отлично!\n'
                                         'Теперь осталось оплатить бота, а затем отправить техническое '
-                                        'задание.')
+                                        'задание.', reply_markup=markup)
         chat_id = update.message.chat_id
         title = "Оплата бота"
         description = "Пожалуйста, оплатите бота."
@@ -121,14 +129,14 @@ async def payment(update, context):
 
 async def asking_description(update, context):
     text = update.message.text
-    if text == 'Далее':
-        await update.message.reply_text('✍️Расскажите, пожалуйста, о боте в нескольких словах:')
+    if text == '➡️ Далее':
+        await update.message.reply_text('✍️ Расскажите, пожалуйста, о боте в нескольких словах:')
         return 'asking_file'
-    elif text == '◀️Назад':
-        markup = ReplyKeyboardMarkup([['🏪Бот-магазин'],
-                                      ['🖥Бот-обработчик']], resize_keyboard=True)
+    elif text == '🏠 Главное меню':
+        markup = ReplyKeyboardMarkup([['🏪 Бот-магазин', '🖥 Бот-обработчик'],
+                                      ['📋 Список заявок']], resize_keyboard=True)
         await update.message.reply_text(
-            "Выберите, пожалуйста, категорию бота:", reply_markup=markup
+            "Выберите действие:", reply_markup=markup
         )
         return 'choice'
 
@@ -136,12 +144,12 @@ async def asking_description(update, context):
 async def asking_file(update, context):
     text = update.message.text
     if text == 'Стоп':
-        await update.message.reply_text('❌Действие отменено.\n'
+        await update.message.reply_text('❌ Действие отменено.\n'
                                         'Нажмите /start, чтобы начать заново.')
         return ConversationHandler.END
     elif text:
         context.user_data["description"] = text
-        await update.message.reply_text('🙌Отлично!\n'
+        await update.message.reply_text('🙌 Отлично!\n'
                                         'Теперь нужно отправить разработчику ТЗ (техническое задание) '
                                         'в одном из предложенных форматах: ".docx", ".doc", ".txt", '
                                         '".rtf", ".odt", ".pdf".\n'
@@ -151,6 +159,8 @@ async def asking_file(update, context):
 
 
 async def getting_file(update, context):
+    markup = ReplyKeyboardMarkup([['🏪 Бот-магазин', '🖥 Бот-обработчик'], ['📋 Список заявок']],
+                                 resize_keyboard=True)
     user_id = update.message.chat_id
     file = await context.bot.get_file(update.message.document)
     file_format = file.file_path.split('/')[-1].split('.')[-1]
@@ -173,7 +183,7 @@ async def getting_file(update, context):
         db_sess.add(info)
         db_sess.commit()
     except sqlalchemy.exc.IntegrityError:
-        await update.message.reply_text('ℹ️Вы уже добавили файл')
+        await update.message.reply_text('ℹ️ Вы уже добавили файл')
 
     work = db_sess.query(Info).order_by(Info.id.desc()).first()
     work_id = f"Заявка №{work.id}\n"
@@ -186,16 +196,16 @@ async def getting_file(update, context):
     await context.bot.send_document(chat_id=5131259861, document=f)
     f.close()
 
-    await update.message.reply_text('✅Заявка на создание бота успешно подана!\nКогда бот будет готов, '
-                                    'будет отправлено его короткое имя.')
-    return ConversationHandler.END
+    await update.message.reply_text('✅ Заявка на создание бота успешно подана!\nКогда бот будет готов, '
+                                    'будет отправлено его короткое имя.', reply_markup=markup)
+    return 'choice'
 
 
 async def show_all_works(update, context):
     text = update.message.text
-    markup = ReplyKeyboardMarkup([['✉️Отправить бота пользователю'], ['◀️Назад']],
+    markup = ReplyKeyboardMarkup([['✉️ Отправить бота пользователю'], ['◀️ Назад']],
                                  resize_keyboard=True, one_time_keyboard=True)
-    if text == '📋Показать все заявки' or '☝️Показать только невыполненные':
+    if text == '📋 Показать все заявки' or text == '☝️ Показать только невыполненные':
         db_sess = db_session.create_session()
         for work in db_sess.query(Info).all():
             work_id = f"Заявка №{work.id}\n"
@@ -204,7 +214,7 @@ async def show_all_works(update, context):
             status = f"Статус: {work.status}\n"
             with open(f"files/file_{work.id}.{work.format}", 'wb') as ff:
                 ff.write(work.ad_data)
-            if text == '☝️Показать только невыполненные':
+            if text == '☝️ Показать только невыполненные':
                 if work.status == 'В работе':
                     await context.bot.send_message(chat_id=5131259861, text=f"{work_id}{description}"
                                                    f"{user_id}{status}",
@@ -219,29 +229,29 @@ async def show_all_works(update, context):
                 f = open(f"files/file_{work.id}.{work.format}", 'rb')
                 await context.bot.send_document(chat_id=5131259861, document=f)
                 f.close()
-        send_text = '⬇️Чтобы отправить готового бота пользователю, нажмите на кнопку ниже'
+        send_text = '⬇️ Чтобы отправить готового бота пользователю, нажмите на кнопку ниже'
         await context.bot.send_message(chat_id=5131259861, text=send_text)
         return 'send_bot_preparing'
 
 
 async def send_bot_preparing(update, context):
     text = update.message.text
-    markup = ReplyKeyboardMarkup([['📋Показать все заявки'], ['☝️Показать только невыполненные']],
+    markup = ReplyKeyboardMarkup([['📋 Показать все заявки'], ['☝️ Показать только невыполненные']],
                                  resize_keyboard=True, one_time_keyboard=True)
-    if text == "✉️Отправить бота пользователю":
-        await update.message.reply_text('ℹ️Чтобы отправить бота пользователю, '
+    if text == "✉️ Отправить бота пользователю":
+        await update.message.reply_text('ℹ️ Чтобы отправить бота пользователю, '
                                         'введите имя бота и номер заявки в формате @<имя бота>, <номер заявки>')
         return 'send_bot_finish'
-    elif text == '◀️Назад':
+    elif text == '◀️ Назад':
         await update.message.reply_text(text='Выберите действие:', reply_markup=markup)
         return 'show_all_works'
 
 
 async def send_bot_finish(update, context):
     text = update.message.text
-    markup = ReplyKeyboardMarkup([['📋Показать все заявки'], ['☝️Показать только невыполненные']],
+    markup = ReplyKeyboardMarkup([['📋 Показать все заявки'], ['☝️ Показать только невыполненные']],
                                  resize_keyboard=True, one_time_keyboard=True)
-    if text == '◀️Назад':
+    if text == '◀️ Назад':
         await update.message.reply_text(text='Выберите действие:', reply_markup=markup)
         return 'show_all_works'
     try:
@@ -252,22 +262,23 @@ async def send_bot_finish(update, context):
         user_id = work.user_id
         description = work.description
         db_sess.commit()
-        await context.bot.send_message(chat_id=user_id, text=f"✅Ваш бот готов! (заявка №{int(id_)})\n"
-                                                         f"{description}\n{bot_name}")
-        await update.message.reply_text('✅Бот успешно отправлен!')
+        await context.bot.send_message(chat_id=user_id, text=f"✅ Ваш бот готов! (заявка №{int(id_)})\n"
+                                       f"{description}\n{bot_name}")
+        await update.message.reply_text('✅ Бот успешно отправлен!')
     except Exception:
-        await context.bot.send_message(text='❌Неверный формат', chat_id=update.message.chat_id)
+        await context.bot.send_message(text='❌ Неверный формат', chat_id=update.message.chat_id)
 
 
 async def stop(update, context):
-    await update.message.reply_text("❌Действие отменено.\n"
+
+    await update.message.reply_text("❌ Действие отменено.\n"
                                     "Нажмите /start, чтобы начать заново.")
     return ConversationHandler.END
 
 
 async def help(update, context):
     await update.message.reply_text(
-        "По всем вопросам обращайтесь: "
+        "ℹ️ По всем вопросам обращайтесь: penkovmaks07@gmail.com"
     )
 
 
@@ -275,22 +286,22 @@ def main():
     db_session.global_init("db/tg_bot_db.sqlite")
     application = Application.builder().token("6718278003:AAEn1cxM9iKStowSOxMXekv4mrjpl_Dr3YA").build()
     application.add_handler(CommandHandler("help", help))
-    # application.add_handler(CommandHandler("show_all", show_all_works))
     application.add_handler(PreCheckoutQueryHandler(payment_check))
     application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment))
 
     conv_handler_user = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
-            'choice': [MessageHandler(filters.TEXT & ~filters.COMMAND, choice)],
+            "main_menu": [MessageHandler(filters.TEXT & ~filters.COMMAND, main_menu)],
+            "choice": [MessageHandler(filters.TEXT & ~filters.COMMAND, choice)],
             "payment": [MessageHandler(filters.TEXT & ~filters.COMMAND, payment)],
             "asking_description": [MessageHandler(filters.TEXT & ~filters.COMMAND, asking_description)],
             "asking_file": [MessageHandler(filters.TEXT & ~filters.COMMAND, asking_file)],
-            "getting_file": [MessageHandler(filters.Document.ALL, getting_file)],
+            "getting_file": [MessageHandler(filters.Document.ALL & ~filters.COMMAND, getting_file)],
 
-            "show_all_works": [MessageHandler(filters.TEXT, show_all_works)],
-            "send_bot_preparing": [MessageHandler(filters.TEXT, send_bot_preparing)],
-            "send_bot_finish": [MessageHandler(filters.TEXT, send_bot_finish)]
+            "show_all_works": [MessageHandler(filters.TEXT & ~filters.COMMAND, show_all_works)],
+            "send_bot_preparing": [MessageHandler(filters.TEXT & ~filters.COMMAND, send_bot_preparing)],
+            "send_bot_finish": [MessageHandler(filters.TEXT & ~filters.COMMAND, send_bot_finish)]
         },
         fallbacks=[CommandHandler('stop', stop)]
     )
