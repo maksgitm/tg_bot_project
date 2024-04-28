@@ -181,7 +181,7 @@ async def getting_file(update, context):
 
     work = db_sess.query(Info).order_by(Info.id.desc()).first()
     work_id = f"Заявка №{work.id}\n"
-    user_id = f"id пользователя: {work.user_id}\n"
+    user_id = f"ID пользователя: {work.user_id}\n"
     data = work.ad_data
     description = f"Описание: {work.description}\n"
     await context.bot.send_message(chat_id=5131259861, text=f"{work_id}{description}{user_id}")
