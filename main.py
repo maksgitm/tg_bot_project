@@ -3,7 +3,7 @@ import sqlalchemy
 from telegram import LabeledPrice, Update
 from telegram.ext import (Application, MessageHandler, filters, CommandHandler, ConversationHandler,
                           PreCheckoutQueryHandler)
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram import ReplyKeyboardMarkup
 from data import db_session
 from data.infos import Info
 
@@ -49,8 +49,7 @@ async def choice(update, context):
                                         'С помощью такого бота вы сможете размещать на продажу свои товары, '
                                         'а клиент сможет оплачивать их в самом боте!\n'
                                         'Цена бота: 800 рублей\n'
-                                        'Продолжить?'
-                                        , reply_markup=markup)
+                                        'Продолжить?', reply_markup=markup)
         context.user_data['variant'] = 'магазин'
 
         return 'payment'
@@ -79,7 +78,6 @@ async def payment_check(update, context):
         await query.answer(ok=False, error_message="❌ Что-то пошло не так...")
     else:
         await query.answer(ok=True)
-
 
 
 async def successful_payment(update, context):
@@ -158,8 +156,8 @@ async def getting_file(update, context):
     user_id = update.message.chat_id
     file = await context.bot.get_file(update.message.document)
     file_format = file.file_path.split('/')[-1].split('.')[-1]
-    if (file_format == 'doc' or file_format == 'docx' or file_format == 'txt' or file_format == 'rtf' or
-            file_format == 'odt' or file_format == 'pdf') and file.file_size != 0:
+    if (file_format == 'doc' or file_format == 'docx' or file_format == 'txt' or
+            file_format == 'rtf' or file_format == 'odt' or file_format == 'pdf') and file.file_size != 0:
         await file.download_to_drive(f"files/send_file.{file_format}")
     else:
         await update.message.reply_text('❌Неверный формат файла')
@@ -212,7 +210,7 @@ async def show_all_works(update, context):
             if text == '☝️ Показать только невыполненные':
                 if work.status == 'В работе':
                     await context.bot.send_message(chat_id=5131259861, text=f"{work_id}{description}"
-                                                   f"{user_id}{status}",
+                                                                            f"{user_id}{status}",
                                                    reply_markup=markup)
                     f = open(f"files/file_{work.id}.{work.format}", 'rb')
                     await context.bot.send_document(chat_id=5131259861, document=f)
@@ -258,14 +256,13 @@ async def send_bot_finish(update, context):
         description = work.description
         db_sess.commit()
         await context.bot.send_message(chat_id=user_id, text=f"✅ Ваш бот готов! (заявка №{int(id_)})\n"
-                                       f"{description}\n{bot_name}")
+                                                             f"{description}\n{bot_name}")
         await update.message.reply_text('✅ Бот успешно отправлен!')
     except Exception:
         await context.bot.send_message(text='❌ Неверный формат', chat_id=update.message.chat_id)
 
 
 async def stop(update, context):
-
     await update.message.reply_text("❌ Действие отменено.\n"
                                     "Нажмите /start, чтобы начать заново.")
     return ConversationHandler.END
