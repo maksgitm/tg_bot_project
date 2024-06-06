@@ -6,14 +6,14 @@ from telegram.ext import (Application, MessageHandler, filters, CommandHandler, 
 from telegram import ReplyKeyboardMarkup
 from data import db_session
 from data.infos import Info
+from config import BOT_TOKEN
+from config import SHOP_TOKEN
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG
 )
 
 logger = logging.getLogger(__name__)
-BOT_TOKEN = '6718278003:AAEn1cxM9iKStowSOxMXekv4mrjpl_Dr3YA'
-SHOP_TOKEN = '1744374395:TEST:d28241bde3387bace73e'
 
 
 async def start(update, context):
@@ -276,7 +276,7 @@ async def help(update, context):
 
 def main():
     db_session.global_init("db/tg_bot_db.sqlite")
-    application = Application.builder().token("6718278003:AAEn1cxM9iKStowSOxMXekv4mrjpl_Dr3YA").build()
+    application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("help", help))
     application.add_handler(PreCheckoutQueryHandler(payment_check))
     application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment))

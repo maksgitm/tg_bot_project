@@ -1,7 +1,6 @@
 import sqlalchemy
 from sqlalchemy_serializer import SerializerMixin
 from data.db_session import SqlAlchemyBase
-# from flask_login import UserMixin
 
 
 class Info(SqlAlchemyBase, SerializerMixin):
